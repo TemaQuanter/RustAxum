@@ -20,6 +20,6 @@ pub async fn set_middleware_custom_header<B>(
         .to_owned();
     let extension = request.extensions_mut();
     extension.insert(HeaderMessage(message.to_owned()));
-    
+
     Ok(next.run(request).await)
 } // end set_middleware_custom_header()
