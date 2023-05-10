@@ -2,9 +2,9 @@ use crate::database::tasks::{self, Entity as Tasks};
 use axum::{
     extract::{Path, Query},
     http::StatusCode,
-    response::IntoResponse,
     Extension, Json,
 };
+use chrono::{DateTime, FixedOffset};
 use sea_orm::QueryFilter;
 use sea_orm::{ColumnTrait, Condition};
 use sea_orm::{DatabaseConnection, EntityTrait};
@@ -16,6 +16,8 @@ pub struct ResponseTask {
     title: String,
     priority: Option<String>,
     description: Option<String>,
+    deleted_at: Option<DateTime<FixedOffset>>,
+    user_id: Option<i32>,
 }
 
 #[derive(Deserialize)]
@@ -27,7 +29,11 @@ pub async fn get_one_task(
     Path(task_id): Path<i32>,
     Extension(database): Extension<DatabaseConnection>,
 ) -> Result<Json<ResponseTask>, StatusCode> {
-    let task = Tasks::find_by_id(task_id).one(&database).await.unwrap();
+    let task = Tasks::find_by_id(task_id)
+        .filter(tasks::Column::DeletedAt.is_null())
+        .one(&database)
+        .await
+        .unwrap();
 
     if let Some(task) = task {
         return Ok(Json(ResponseTask {
@@ -35,6 +41,8 @@ pub async fn get_one_task(
             priority: task.priority,
             description: task.description,
             title: task.title,
+            deleted_at: task.deleted_at,
+            user_id: task.user_id,
         }));
     }
 
@@ -57,6 +65,7 @@ pub async fn get_all_tasks(
 
     let tasks = Tasks::find()
         .filter(priority_filter)
+        .filter(tasks::Column::DeletedAt.is_null())
         .all(&database)
         .await
         .map_err(|_error| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -66,6 +75,8 @@ pub async fn get_all_tasks(
             title: db_task.title,
             priority: db_task.priority,
             description: db_task.description,
+            deleted_at: db_task.deleted_at,
+            user_id: db_task.user_id,
         })
         .collect();
 
