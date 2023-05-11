@@ -1,3 +1,4 @@
+use axum::extract::State;
 use axum::{http::StatusCode, Extension, Json};
 use sea_orm::ActiveModelTrait;
 use sea_orm::ColumnTrait;
@@ -11,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::database::users;
 use crate::database::users::Entity as Users;
 use crate::database::users::Model;
+use crate::utils::jwt::create_jwt;
 
 #[derive(Deserialize)]
 pub struct RequestUser {
@@ -26,13 +28,14 @@ pub struct ResponseUser {
 }
 
 pub async fn create_user(
-    Extension(database): Extension<DatabaseConnection>,
+    State(database): State<DatabaseConnection>,
     Json(request_user): Json<RequestUser>,
 ) -> Result<Json<ResponseUser>, StatusCode> {
+    let jwt = create_jwt()?;
     let new_user = users::ActiveModel {
         username: Set(request_user.username),
         password: Set(hash_password(request_user.password)?),
-        token: Set(Some("laslfjohfwejfjldsjewifj".to_string())),
+        token: Set(Some(jwt)),
         ..Default::default()
     }
     .save(&database)
@@ -47,7 +50,7 @@ pub async fn create_user(
 }
 
 pub async fn login(
-    Extension(database): Extension<DatabaseConnection>,
+    State(database): State<DatabaseConnection>,
     Json(request_user): Json<RequestUser>,
 ) -> Result<Json<ResponseUser>, StatusCode> {
     let db_user = Users::find()
@@ -62,7 +65,7 @@ pub async fn login(
             return Err(StatusCode::UNAUTHORIZED);
         }
         // Do log in.
-        let new_token = "14291479213423".to_string();
+        let new_token = create_jwt()?;
         let mut user = db_user.into_active_model();
 
         user.token = Set(Some(new_token));
@@ -83,7 +86,7 @@ pub async fn login(
 }
 
 pub async fn logout(
-    Extension(database): Extension<DatabaseConnection>,
+    State(database): State<DatabaseConnection>,
     Extension(user): Extension<Model>,
 ) -> Result<(), StatusCode> {
     let mut user = user.into_active_model();

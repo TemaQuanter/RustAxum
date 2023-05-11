@@ -1,5 +1,8 @@
 use axum::extract::Query;
-use axum::{extract::Path, http::StatusCode, Extension};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+};
 use sea_orm::ColumnTrait;
 use sea_orm::DatabaseConnection;
 use sea_orm::EntityTrait;
@@ -17,7 +20,7 @@ pub struct QueryParams {
 
 pub async fn delete_task(
     Path(task_id): Path<i32>,
-    Extension(database): Extension<DatabaseConnection>,
+    State(database): State<DatabaseConnection>,
     Query(query_params): Query<QueryParams>,
 ) -> Result<(), StatusCode> {
     if query_params.soft {

@@ -1,33 +1,37 @@
 use axum::{
-    headers::{authorization::Bearer, Authorization, HeaderMapExt},
+    extract::State,
+    headers::{authorization::Bearer, Authorization},
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
+    TypedHeader,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
-use crate::database::users::{self, Entity as Users};
+use crate::{
+    database::users::{self, Entity as Users},
+    utils::{app_error::AppError, jwt::is_valid},
+};
 
-pub async fn guard<T>(mut request: Request<T>, next: Next<T>) -> Result<Response, StatusCode> {
-    let token = request
-        .headers()
-        .typed_get::<Authorization<Bearer>>()
-        .ok_or(StatusCode::BAD_REQUEST)?
-        .token()
-        .to_owned();
-
-    let database = request
-        .extensions()
-        .get::<DatabaseConnection>()
-        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+pub async fn guard<T>(
+    State(database): State<DatabaseConnection>,
+    TypedHeader(token): TypedHeader<Authorization<Bearer>>,
+    mut request: Request<T>,
+    next: Next<T>,
+) -> Result<Response, AppError> {
+    let token = token.token().to_owned();
 
     let user = Users::find()
-        .filter(users::Column::Token.eq(Some(token)))
-        .one(database)
+        .filter(users::Column::Token.eq(Some(token.clone())))
+        .one(&database)
         .await
-        .map_err(|_err| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_err| {
+            AppError::new(StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+        })?;
 
-    let Some(user) = user else {return Err(StatusCode::UNAUTHORIZED)};
+    let Some(user) = user else {return Err(AppError::new(StatusCode::UNAUTHORIZED, "You are not authorized, please log in or create an account"))};
+
+    is_valid(&token)?;
 
     request.extensions_mut().insert(user);
 

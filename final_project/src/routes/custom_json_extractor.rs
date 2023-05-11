@@ -27,7 +27,7 @@ where
 {
     type Rejection = (StatusCode, String);
 
-    async fn from_request(request: Request<B>, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request(request: Request<B>, _state: &S) -> Result<Self, Self::Rejection> {
         let Json(user) = request
             .extract::<Json<RequestUser>, _>()
             .await

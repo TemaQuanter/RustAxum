@@ -1,7 +1,7 @@
+use axum::extract::State;
 use axum::headers::authorization::Bearer;
 use axum::headers::Authorization;
 use axum::http::StatusCode;
-use axum::Extension;
 use axum::Json;
 use axum::TypedHeader;
 use sea_orm::ActiveModelTrait;
@@ -23,7 +23,7 @@ pub struct RequestTask {
 }
 
 pub async fn create_task(
-    Extension(database): Extension<DatabaseConnection>,
+    State(database): State<DatabaseConnection>,
     authorization: TypedHeader<Authorization<Bearer>>,
     Json(request_task): Json<RequestTask>,
 ) -> Result<(), StatusCode> {

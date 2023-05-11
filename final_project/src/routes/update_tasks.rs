@@ -1,6 +1,6 @@
 use axum::extract::Path;
+use axum::extract::State;
 use axum::http::StatusCode;
-use axum::Extension;
 use axum::Json;
 use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::ColumnTrait;
@@ -27,7 +27,7 @@ pub struct RequestTask {
 
 pub async fn atomic_update(
     Path(task_id): Path<i32>,
-    Extension(database): Extension<DatabaseConnection>,
+    State(database): State<DatabaseConnection>,
     Json(request_task): Json<RequestTask>,
 ) -> Result<(), StatusCode> {
     let update_task = tasks::ActiveModel {
